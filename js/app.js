@@ -3,16 +3,38 @@
 const sbClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
 const STATUSES = ['Sin empezar', 'En curso', 'En espera', 'Parado', 'Listo'];
-const PRIO_COLORS = { Alta: 'var(--danger)', Media: 'var(--warning)', Baja: 'var(--success)' };
+const MONTHS = ['Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre'];
+const CATEGORIES = ['Marketing', 'Diseño', 'Web', 'Mailing', 'Tienda', 'Admin', 'General'];
+const PRIORITIES = ['Alta', 'Media', 'Baja'];
+const PRIORITY_ORDER = { Alta: 0, Media: 1, Baja: 2 };
+
+const CATEGORY_ICONS = {
+  Marketing: '📣', Diseño: '🎨', Web: '🌐', Mailing: '✉️', Tienda: '🛒', Admin: '🗂️', General: '📌',
+};
+const CATEGORY_VARS = {
+  Marketing: '--cat-marketing', Diseño: '--cat-diseno', Web: '--cat-web', Mailing: '--cat-mailing',
+  Tienda: '--cat-tienda', Admin: '--cat-admin', General: '--cat-general',
+};
+const PRIORITY_ICONS = { Alta: '🔴', Media: '🟡', Baja: '🟢' };
+const PRIORITY_VARS = { Alta: '--status-critical', Media: '--status-warning', Baja: '--status-good' };
+const STATUS_VARS = {
+  'Sin empezar': '--col-sinempezar', 'En curso': '--col-encurso', 'En espera': '--col-enespera',
+  Parado: '--col-parado', Listo: '--col-listo',
+};
 
 const state = {
   session: null,
   tasks: [],
+  view: localStorage.getItem('view') || 'board',
   filterMes: 'Todos',
+  filterCategoria: 'Todas',
+  filterPrioridad: 'Todas',
   filterQuery: '',
+  sortBy: 'creacion',
   editingTaskId: null,
   channel: null,
   reloadTimer: null,
+  charts: {},
 };
 
 const els = {
@@ -21,11 +43,18 @@ const els = {
   loginError: document.getElementById('login-error'),
   loginSubmit: document.getElementById('login-submit'),
   app: document.getElementById('app'),
+  avatar: document.getElementById('user-avatar'),
   statsSummary: document.getElementById('stats-summary'),
   filterMes: document.getElementById('filter-mes'),
+  filterCategoria: document.getElementById('filter-categoria'),
+  filterPrioridad: document.getElementById('filter-prioridad'),
+  sortBy: document.getElementById('sort-by'),
   filterSearch: document.getElementById('filter-search'),
   lists: {},
   counts: {},
+  tableBody: document.getElementById('table-body'),
+  tableEmpty: document.getElementById('table-empty'),
+  statsTiles: document.getElementById('stats-tiles'),
   modalOverlay: document.getElementById('modal-overlay'),
   modalTitle: document.getElementById('modal-title'),
   taskForm: document.getElementById('task-form'),
@@ -56,6 +85,29 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString('es-ES', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function categoryColor(cat) {
+  return cssVar(CATEGORY_VARS[cat] || '--cat-general');
+}
+
+function priorityColor(prio) {
+  return cssVar(PRIORITY_VARS[prio] || '--status-warning');
+}
+
+function statusColor(status) {
+  return cssVar(STATUS_VARS[status] || '--col-sinempezar');
+}
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
 function showToast(msg, type = 'info') {
@@ -91,6 +143,7 @@ els.themeToggle.addEventListener('click', () => {
   const next = effectiveTheme() === 'dark' ? 'light' : 'dark';
   localStorage.setItem('theme', next);
   applyTheme(next);
+  if (state.view === 'stats') renderStats();
 });
 
 applyTheme(localStorage.getItem('theme'));
@@ -116,6 +169,10 @@ els.loginForm.addEventListener('submit', async (e) => {
 document.getElementById('logout-btn').addEventListener('click', () => sbClient.auth.signOut());
 
 async function handleAuthedState() {
+  const email = (state.session && state.session.user && state.session.user.email) || '';
+  els.avatar.textContent = email ? email.charAt(0).toUpperCase() : '?';
+  els.avatar.title = email;
+
   els.loginScreen.hidden = true;
   els.app.hidden = false;
   await loadTasks();
@@ -182,13 +239,35 @@ function scheduleReload() {
   }, 250);
 }
 
-/* ============================== render =================================== */
+/* ============================ vistas (switcher) ========================== */
+
+document.querySelectorAll('.view-tab').forEach((btn) => {
+  btn.addEventListener('click', () => setView(btn.dataset.view));
+});
+
+function setView(view) {
+  state.view = view;
+  localStorage.setItem('view', view);
+  document.querySelectorAll('.view-tab').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+  document.getElementById('view-board').classList.toggle('active', view === 'board');
+  document.getElementById('view-table').classList.toggle('active', view === 'table');
+  document.getElementById('view-stats').classList.toggle('active', view === 'stats');
+  if (view === 'stats') renderStats();
+}
+
+setView(state.view);
+
+/* ============================== filtros =================================== */
 
 function getFilteredTasks() {
   const mes = state.filterMes;
+  const categoria = state.filterCategoria;
+  const prioridad = state.filterPrioridad;
   const q = state.filterQuery.trim().toLowerCase();
   return state.tasks.filter((t) => {
     if (mes !== 'Todos' && t.mes !== mes) return false;
+    if (categoria !== 'Todas' && t.categoria !== categoria) return false;
+    if (prioridad !== 'Todas' && t.prioridad !== prioridad) return false;
     if (q) {
       const hay = `${t.nombre} ${t.notas || ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
@@ -197,11 +276,50 @@ function getFilteredTasks() {
   });
 }
 
+function sortTasks(list) {
+  const arr = [...list];
+  if (state.sortBy === 'apuntada') {
+    arr.sort((a, b) => (a.apuntada || '￿').localeCompare(b.apuntada || '￿'));
+  } else if (state.sortBy === 'prioridad') {
+    arr.sort((a, b) => PRIORITY_ORDER[a.prioridad] - PRIORITY_ORDER[b.prioridad]);
+  } else if (state.sortBy === 'nombre') {
+    arr.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  } else {
+    arr.reverse(); // creación: más recientes primero (se cargan por created_at asc)
+  }
+  return arr;
+}
+
+els.filterMes.addEventListener('change', (e) => { state.filterMes = e.target.value; render(); });
+els.filterCategoria.addEventListener('change', (e) => { state.filterCategoria = e.target.value; render(); });
+els.filterPrioridad.addEventListener('change', (e) => { state.filterPrioridad = e.target.value; render(); });
+els.sortBy.addEventListener('change', (e) => { state.sortBy = e.target.value; render(); });
+els.filterSearch.addEventListener('input', (e) => { state.filterQuery = e.target.value; render(); });
+
+/* ============================== render (general) =========================== */
+
+function render() {
+  const filtered = sortTasks(getFilteredTasks());
+  renderBoard(filtered);
+  renderTable(filtered);
+  updateStatsSummary();
+  if (state.view === 'stats') renderStats(filtered);
+}
+
+function updateStatsSummary() {
+  const total = state.tasks.length;
+  const listo = state.tasks.filter((t) => t.status === 'Listo').length;
+  const pct = total ? Math.round((listo / total) * 100) : 0;
+  els.statsSummary.textContent = `${total} tareas · ${listo} completadas (${pct}%)`;
+}
+
+/* ============================== vista tablero ============================ */
+
 function buildCard(task) {
   const div = document.createElement('div');
   div.className = 'task-card';
   div.dataset.id = task.id;
-  div.style.setProperty('--prio-color', PRIO_COLORS[task.prioridad] || PRIO_COLORS.Media);
+  div.style.setProperty('--prio-color', priorityColor(task.prioridad));
 
   const title = document.createElement('div');
   title.className = 'task-card-title';
@@ -212,8 +330,8 @@ function buildCard(task) {
   meta.className = 'task-card-meta';
   meta.innerHTML = `
     <span class="badge">${escapeHtml(task.mes)}</span>
-    <span class="badge">${escapeHtml(task.categoria)}</span>
-    <span class="badge">${escapeHtml(task.prioridad)}</span>
+    <span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${CATEGORY_ICONS[task.categoria] || ''} ${escapeHtml(task.categoria)}</span>
+    <span class="badge">${PRIORITY_ICONS[task.prioridad] || ''} ${escapeHtml(task.prioridad)}</span>
   `;
   div.appendChild(meta);
 
@@ -234,15 +352,13 @@ function buildCard(task) {
   return div;
 }
 
-function render() {
-  const filtered = getFilteredTasks();
+function renderBoard(filtered) {
   STATUSES.forEach((status) => {
     const list = els.lists[status];
     list.innerHTML = '';
     filtered.filter((t) => t.status === status).forEach((t) => list.appendChild(buildCard(t)));
     els.counts[status].textContent = list.children.length;
   });
-  updateStatsSummary();
 }
 
 function updateColumnCountsFromDom() {
@@ -251,24 +367,184 @@ function updateColumnCountsFromDom() {
   });
 }
 
-function updateStatsSummary() {
-  const total = state.tasks.length;
-  const listo = state.tasks.filter((t) => t.status === 'Listo').length;
-  const pct = total ? Math.round((listo / total) * 100) : 0;
-  els.statsSummary.textContent = `${total} tareas · ${listo} completadas (${pct}%)`;
+/* ============================== vista tabla ============================== */
+
+function buildTableRow(task) {
+  const tr = document.createElement('tr');
+  tr.addEventListener('click', () => openTaskModal(task.id));
+
+  const subtasks = task.subtasks || [];
+  const progreso = subtasks.length ? `${subtasks.filter((s) => s.done).length}/${subtasks.length}` : '—';
+
+  tr.innerHTML = `
+    <td>${escapeHtml(task.nombre)}</td>
+    <td>${escapeHtml(task.mes)}</td>
+    <td><span class="badge"><span class="badge-dot" style="--dot-color:${statusColor(task.status)}"></span>${escapeHtml(task.status)}</span></td>
+    <td><span class="badge">${PRIORITY_ICONS[task.prioridad] || ''} ${escapeHtml(task.prioridad)}</span></td>
+    <td><span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span></td>
+    <td>${task.apuntada || '—'}</td>
+    <td>${task.terminada || '—'}</td>
+    <td>${progreso}</td>
+  `;
+  return tr;
 }
 
-/* ========================= filtros de la barra ============================ */
+function renderTable(filtered) {
+  els.tableBody.innerHTML = '';
+  filtered.forEach((t) => els.tableBody.appendChild(buildTableRow(t)));
+  els.tableEmpty.hidden = filtered.length !== 0;
+}
 
-els.filterMes.addEventListener('change', (e) => {
-  state.filterMes = e.target.value;
-  render();
-});
+/* ============================ vista estadísticas =========================== */
 
-els.filterSearch.addEventListener('input', (e) => {
-  state.filterQuery = e.target.value;
-  render();
-});
+const MONTH_ABBR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+function monthLabel(ym) {
+  const [y, m] = ym.split('-');
+  return `${MONTH_ABBR[Number(m) - 1]} ${y}`;
+}
+
+function buildTendenciaData(tasks) {
+  const counts = {};
+  tasks.filter((t) => t.status === 'Listo' && t.terminada).forEach((t) => {
+    const ym = t.terminada.slice(0, 7);
+    counts[ym] = (counts[ym] || 0) + 1;
+  });
+  const keys = Object.keys(counts).sort();
+  let running = 0;
+  const labels = [];
+  const data = [];
+  keys.forEach((k) => {
+    running += counts[k];
+    labels.push(monthLabel(k));
+    data.push(running);
+  });
+  return { labels, data, counts, keys };
+}
+
+function renderChartTable(id, headers, rows) {
+  const el = document.getElementById(id);
+  if (!rows.length) {
+    el.innerHTML = `<tbody><tr><td>Sin datos todavía.</td></tr></tbody>`;
+    return;
+  }
+  el.innerHTML = `
+    <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+  `;
+}
+
+function buildChart(canvasId, config) {
+  const canvas = document.getElementById(canvasId);
+  if (state.charts[canvasId]) state.charts[canvasId].destroy();
+  state.charts[canvasId] = new Chart(canvas, config);
+}
+
+function updateStatTiles(tasks) {
+  const total = tasks.length;
+  const listo = tasks.filter((t) => t.status === 'Listo').length;
+  const curso = tasks.filter((t) => t.status === 'En curso').length;
+  const pendientes = total - listo - curso;
+  const horas = tasks.reduce((sum, t) => sum + (Number(t.horas) || 0), 0);
+  const pct = total ? Math.round((listo / total) * 100) : 0;
+
+  const tiles = [
+    { label: 'Total tareas', value: total, color: cssVar('--accent') },
+    { label: `Completadas (${pct}%)`, value: listo, color: cssVar('--status-good') },
+    { label: 'En curso', value: curso, color: cssVar('--col-encurso') },
+    { label: 'Pendientes', value: pendientes, color: cssVar('--status-warning') },
+    { label: 'Horas registradas', value: Math.round(horas * 10) / 10, color: cssVar('--accent-2') },
+  ];
+
+  els.statsTiles.innerHTML = tiles.map((t) => `
+    <div class="stat-tile">
+      <div class="stat-tile-value"><span class="stat-tile-dot" style="background:${t.color}"></span>${t.value}</div>
+      <div class="stat-tile-label">${escapeHtml(t.label)}</div>
+    </div>
+  `).join('');
+}
+
+function renderStats(list) {
+  if (typeof Chart === 'undefined') return;
+  const tasks = list || getFilteredTasks();
+  updateStatTiles(tasks);
+
+  const textColor = cssVar('--text-muted');
+  const gridColor = cssVar('--border');
+  const surface = cssVar('--bg-elevated');
+  const accent = cssVar('--accent');
+
+  const mesCounts = MONTHS.map((m) => tasks.filter((t) => t.mes === m).length);
+  buildChart('chart-mes', {
+    type: 'bar',
+    data: { labels: MONTHS, datasets: [{ label: 'Tareas', data: mesCounts, backgroundColor: accent, borderRadius: 4, maxBarThickness: 34 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } },
+      },
+    },
+  });
+  renderChartTable('chart-mes-table', ['Mes', 'Tareas'], MONTHS.map((m, i) => [m, mesCounts[i]]));
+
+  const catCounts = CATEGORIES.map((c) => tasks.filter((t) => t.categoria === c).length);
+  const catColors = CATEGORIES.map(categoryColor);
+  buildChart('chart-categoria', {
+    type: 'doughnut',
+    data: { labels: CATEGORIES, datasets: [{ data: catCounts, backgroundColor: catColors, borderColor: surface, borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { size: 11 } } } },
+    },
+  });
+  renderChartTable('chart-categoria-table', ['Categoría', 'Tareas'], CATEGORIES.map((c, i) => [c, catCounts[i]]));
+
+  const prioCounts = PRIORITIES.map((p) => tasks.filter((t) => t.prioridad === p).length);
+  const prioColors = PRIORITIES.map(priorityColor);
+  buildChart('chart-prioridad', {
+    type: 'doughnut',
+    data: { labels: PRIORITIES, datasets: [{ data: prioCounts, backgroundColor: prioColors, borderColor: surface, borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { size: 11 } } } },
+    },
+  });
+  renderChartTable('chart-prioridad-table', ['Prioridad', 'Tareas'], PRIORITIES.map((p, i) => [p, prioCounts[i]]));
+
+  const tendencia = buildTendenciaData(tasks);
+  buildChart('chart-tendencia', {
+    type: 'line',
+    data: {
+      labels: tendencia.labels,
+      datasets: [{
+        label: 'Completadas (acumulado)',
+        data: tendencia.data,
+        borderColor: accent,
+        backgroundColor: hexToRgba(accent, 0.15),
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: accent,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } },
+      },
+    },
+  });
+  renderChartTable('chart-tendencia-table', ['Mes', 'Completadas (acumulado)'], tendencia.keys.map((k, i) => [monthLabel(k), tendencia.data[i]]));
+}
 
 /* ========================= drag & drop (SortableJS) ======================== */
 

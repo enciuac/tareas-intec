@@ -37,72 +37,167 @@
     </div>
     <div class="topbar-actions">
       <button id="theme-toggle" class="icon-btn" title="Cambiar tema" type="button">🌙</button>
+      <span id="user-avatar" class="avatar" title=""></span>
       <button id="logout-btn" class="ghost-btn" type="button">Salir</button>
       <button id="new-task-btn" class="primary-btn" type="button">+ Nueva tarea</button>
     </div>
   </header>
 
   <div class="toolbar">
-    <select id="filter-mes" class="select">
-      <option value="Todos">Todos los meses</option>
-      <option value="Febrero">Febrero</option>
-      <option value="Marzo">Marzo</option>
-      <option value="Abril">Abril</option>
-      <option value="Mayo">Mayo</option>
-      <option value="Junio">Junio</option>
-      <option value="Julio">Julio</option>
-      <option value="Agosto">Agosto</option>
-      <option value="Septiembre">Septiembre</option>
-    </select>
-    <input type="search" id="filter-search" class="search-input" placeholder="Buscar por nombre o notas…">
+    <nav class="view-switcher" id="view-switcher">
+      <button class="view-tab active" data-view="board" type="button">🗂️ Tablero</button>
+      <button class="view-tab" data-view="table" type="button">📃 Tabla</button>
+      <button class="view-tab" data-view="stats" type="button">📊 Estadísticas</button>
+    </nav>
+
+    <div class="toolbar-filters">
+      <select id="filter-mes" class="select">
+        <option value="Todos">Todos los meses</option>
+        <option value="Febrero">Febrero</option>
+        <option value="Marzo">Marzo</option>
+        <option value="Abril">Abril</option>
+        <option value="Mayo">Mayo</option>
+        <option value="Junio">Junio</option>
+        <option value="Julio">Julio</option>
+        <option value="Agosto">Agosto</option>
+        <option value="Septiembre">Septiembre</option>
+      </select>
+      <select id="filter-categoria" class="select">
+        <option value="Todas">Todas las categorías</option>
+        <option value="Marketing">📣 Marketing</option>
+        <option value="Diseño">🎨 Diseño</option>
+        <option value="Web">🌐 Web</option>
+        <option value="Mailing">✉️ Mailing</option>
+        <option value="Tienda">🛒 Tienda</option>
+        <option value="Admin">🗂️ Admin</option>
+        <option value="General">📌 General</option>
+      </select>
+      <select id="filter-prioridad" class="select">
+        <option value="Todas">Toda prioridad</option>
+        <option value="Alta">🔴 Alta</option>
+        <option value="Media">🟡 Media</option>
+        <option value="Baja">🟢 Baja</option>
+      </select>
+      <select id="sort-by" class="select">
+        <option value="creacion">Ordenar: recientes</option>
+        <option value="apuntada">Ordenar: fecha apuntada</option>
+        <option value="prioridad">Ordenar: prioridad</option>
+        <option value="nombre">Ordenar: nombre A-Z</option>
+      </select>
+      <input type="search" id="filter-search" class="search-input" placeholder="Buscar por nombre o notas…">
+    </div>
   </div>
 
-  <main class="board" id="board">
-    <section class="column" data-status="Sin empezar">
-      <header class="column-header">
-        <span class="column-dot dot-sinempezar"></span>
-        <h2>Sin empezar</h2>
-        <span class="column-count" data-count="Sin empezar">0</span>
-      </header>
-      <div class="card-list" data-list="Sin empezar"></div>
-    </section>
+  <!-- ---------------- Vista Tablero (Kanban) ---------------- -->
+  <div id="view-board" class="view-panel active">
+    <main class="board" id="board">
+      <section class="column" data-status="Sin empezar">
+        <header class="column-header">
+          <span class="column-dot dot-sinempezar"></span>
+          <h2>Sin empezar</h2>
+          <span class="column-count" data-count="Sin empezar">0</span>
+        </header>
+        <div class="card-list" data-list="Sin empezar"></div>
+      </section>
 
-    <section class="column" data-status="En curso">
-      <header class="column-header">
-        <span class="column-dot dot-encurso"></span>
-        <h2>En curso</h2>
-        <span class="column-count" data-count="En curso">0</span>
-      </header>
-      <div class="card-list" data-list="En curso"></div>
-    </section>
+      <section class="column" data-status="En curso">
+        <header class="column-header">
+          <span class="column-dot dot-encurso"></span>
+          <h2>En curso</h2>
+          <span class="column-count" data-count="En curso">0</span>
+        </header>
+        <div class="card-list" data-list="En curso"></div>
+      </section>
 
-    <section class="column" data-status="En espera">
-      <header class="column-header">
-        <span class="column-dot dot-enespera"></span>
-        <h2>En espera</h2>
-        <span class="column-count" data-count="En espera">0</span>
-      </header>
-      <div class="card-list" data-list="En espera"></div>
-    </section>
+      <section class="column" data-status="En espera">
+        <header class="column-header">
+          <span class="column-dot dot-enespera"></span>
+          <h2>En espera</h2>
+          <span class="column-count" data-count="En espera">0</span>
+        </header>
+        <div class="card-list" data-list="En espera"></div>
+      </section>
 
-    <section class="column" data-status="Parado">
-      <header class="column-header">
-        <span class="column-dot dot-parado"></span>
-        <h2>Parado</h2>
-        <span class="column-count" data-count="Parado">0</span>
-      </header>
-      <div class="card-list" data-list="Parado"></div>
-    </section>
+      <section class="column" data-status="Parado">
+        <header class="column-header">
+          <span class="column-dot dot-parado"></span>
+          <h2>Parado</h2>
+          <span class="column-count" data-count="Parado">0</span>
+        </header>
+        <div class="card-list" data-list="Parado"></div>
+      </section>
 
-    <section class="column" data-status="Listo">
-      <header class="column-header">
-        <span class="column-dot dot-listo"></span>
-        <h2>Listo</h2>
-        <span class="column-count" data-count="Listo">0</span>
-      </header>
-      <div class="card-list" data-list="Listo"></div>
-    </section>
-  </main>
+      <section class="column" data-status="Listo">
+        <header class="column-header">
+          <span class="column-dot dot-listo"></span>
+          <h2>Listo</h2>
+          <span class="column-count" data-count="Listo">0</span>
+        </header>
+        <div class="card-list" data-list="Listo"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ---------------- Vista Tabla ---------------- -->
+  <div id="view-table" class="view-panel">
+    <div class="table-wrap">
+      <table class="task-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Mes</th>
+            <th>Estado</th>
+            <th>Prioridad</th>
+            <th>Categoría</th>
+            <th>Apuntada</th>
+            <th>Terminada</th>
+            <th>Progreso</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+      <p id="table-empty" class="hint" hidden>No hay tareas que coincidan con los filtros.</p>
+    </div>
+  </div>
+
+  <!-- ---------------- Vista Estadísticas ---------------- -->
+  <div id="view-stats" class="view-panel">
+    <div class="stats-tiles" id="stats-tiles"></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Tareas por mes</h3>
+        <div class="chart-box"><canvas id="chart-mes"></canvas></div>
+        <details class="chart-table-toggle">
+          <summary>Ver datos</summary>
+          <table class="chart-data-table" id="chart-mes-table"></table>
+        </details>
+      </div>
+      <div class="chart-card">
+        <h3>Tareas por categoría</h3>
+        <div class="chart-box"><canvas id="chart-categoria"></canvas></div>
+        <details class="chart-table-toggle">
+          <summary>Ver datos</summary>
+          <table class="chart-data-table" id="chart-categoria-table"></table>
+        </details>
+      </div>
+      <div class="chart-card">
+        <h3>Tareas por prioridad</h3>
+        <div class="chart-box"><canvas id="chart-prioridad"></canvas></div>
+        <details class="chart-table-toggle">
+          <summary>Ver datos</summary>
+          <table class="chart-data-table" id="chart-prioridad-table"></table>
+        </details>
+      </div>
+      <div class="chart-card chart-card-wide">
+        <h3>Tendencia de completadas</h3>
+        <div class="chart-box"><canvas id="chart-tendencia"></canvas></div>
+        <details class="chart-table-toggle">
+          <summary>Ver datos</summary>
+          <table class="chart-data-table" id="chart-tendencia-table"></table>
+        </details>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ===================== MODAL TAREA ===================== -->
@@ -157,21 +252,21 @@
           <label>
             Prioridad
             <select id="field-prioridad" required>
-              <option value="Alta">Alta</option>
-              <option value="Media" selected>Media</option>
-              <option value="Baja">Baja</option>
+              <option value="Alta">🔴 Alta</option>
+              <option value="Media" selected>🟡 Media</option>
+              <option value="Baja">🟢 Baja</option>
             </select>
           </label>
           <label>
             Categoría
             <select id="field-categoria" required>
-              <option value="Marketing">Marketing</option>
-              <option value="Diseño">Diseño</option>
-              <option value="Web">Web</option>
-              <option value="Mailing">Mailing</option>
-              <option value="Tienda">Tienda</option>
-              <option value="Admin">Admin</option>
-              <option value="General" selected>General</option>
+              <option value="Marketing">📣 Marketing</option>
+              <option value="Diseño">🎨 Diseño</option>
+              <option value="Web">🌐 Web</option>
+              <option value="Mailing">✉️ Mailing</option>
+              <option value="Tienda">🛒 Tienda</option>
+              <option value="Admin">🗂️ Admin</option>
+              <option value="General" selected>📌 General</option>
             </select>
           </label>
         </div>
@@ -228,6 +323,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 </body>
