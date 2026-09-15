@@ -8,14 +8,10 @@ const CATEGORIES = ['Marketing', 'Diseño', 'Web', 'Mailing', 'Tienda', 'Admin',
 const PRIORITIES = ['Alta', 'Media', 'Baja'];
 const PRIORITY_ORDER = { Alta: 0, Media: 1, Baja: 2 };
 
-const CATEGORY_ICONS = {
-  Marketing: '📣', Diseño: '🎨', Web: '🌐', Mailing: '✉️', Tienda: '🛒', Admin: '🗂️', General: '📌',
-};
 const CATEGORY_VARS = {
   Marketing: '--cat-marketing', Diseño: '--cat-diseno', Web: '--cat-web', Mailing: '--cat-mailing',
   Tienda: '--cat-tienda', Admin: '--cat-admin', General: '--cat-general',
 };
-const PRIORITY_ICONS = { Alta: '🔴', Media: '🟡', Baja: '🟢' };
 const PRIORITY_VARS = { Alta: '--status-critical', Media: '--status-warning', Baja: '--status-good' };
 const STATUS_VARS = {
   'Sin empezar': '--col-sinempezar', 'En curso': '--col-encurso', 'En espera': '--col-enespera',
@@ -330,8 +326,8 @@ function buildCard(task) {
   meta.className = 'task-card-meta';
   meta.innerHTML = `
     <span class="badge">${escapeHtml(task.mes)}</span>
-    <span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${CATEGORY_ICONS[task.categoria] || ''} ${escapeHtml(task.categoria)}</span>
-    <span class="badge">${PRIORITY_ICONS[task.prioridad] || ''} ${escapeHtml(task.prioridad)}</span>
+    <span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span>
+    <span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span>
   `;
   div.appendChild(meta);
 
@@ -380,7 +376,7 @@ function buildTableRow(task) {
     <td>${escapeHtml(task.nombre)}</td>
     <td>${escapeHtml(task.mes)}</td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${statusColor(task.status)}"></span>${escapeHtml(task.status)}</span></td>
-    <td><span class="badge">${PRIORITY_ICONS[task.prioridad] || ''} ${escapeHtml(task.prioridad)}</span></td>
+    <td><span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span></td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span></td>
     <td>${task.apuntada || '—'}</td>
     <td>${task.terminada || '—'}</td>
