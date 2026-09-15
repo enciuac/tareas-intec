@@ -71,6 +71,9 @@ const els = {
   taskForm: document.getElementById('task-form'),
   deleteTaskBtn: document.getElementById('delete-task-btn'),
   subtasksHint: document.getElementById('subtasks-hint'),
+  subtasksProgress: document.getElementById('subtasks-progress'),
+  subtasksProgressLabel: document.getElementById('subtasks-progress-label'),
+  subtasksProgressFill: document.getElementById('subtasks-progress-fill'),
   subtasksList: document.getElementById('subtasks-list'),
   subtaskAddForm: document.getElementById('subtask-add-form'),
   subtaskInput: document.getElementById('subtask-input'),
@@ -704,12 +707,40 @@ function renderSubtasksTab(task) {
   if (!task) {
     els.subtasksHint.hidden = false;
     els.subtaskAddForm.hidden = true;
+    els.subtasksProgress.hidden = true;
     return;
   }
   els.subtasksHint.hidden = true;
   els.subtaskAddForm.hidden = false;
+
   const subtasks = [...(task.subtasks || [])].sort((a, b) => a.pos - b.pos);
-  subtasks.forEach((st) => els.subtasksList.appendChild(buildSubtaskItem(task.id, st)));
+  const pending = subtasks.filter((s) => !s.done);
+  const done = subtasks.filter((s) => s.done);
+
+  if (subtasks.length) {
+    const pct = Math.round((done.length / subtasks.length) * 100);
+    els.subtasksProgress.hidden = false;
+    els.subtasksProgressLabel.textContent = `${done.length}/${subtasks.length}`;
+    els.subtasksProgressFill.style.width = `${pct}%`;
+  } else {
+    els.subtasksProgress.hidden = true;
+  }
+
+  if (pending.length) {
+    els.subtasksList.appendChild(buildSubtaskGroupLabel(`Pendientes · ${pending.length}`));
+    pending.forEach((st) => els.subtasksList.appendChild(buildSubtaskItem(task.id, st)));
+  }
+  if (done.length) {
+    els.subtasksList.appendChild(buildSubtaskGroupLabel(`Completadas · ${done.length}`));
+    done.forEach((st) => els.subtasksList.appendChild(buildSubtaskItem(task.id, st)));
+  }
+}
+
+function buildSubtaskGroupLabel(text) {
+  const li = document.createElement('li');
+  li.className = 'subtask-group-label';
+  li.textContent = text;
+  return li;
 }
 
 function buildSubtaskItem(taskId, st) {
@@ -728,8 +759,8 @@ function buildSubtaskItem(taskId, st) {
       return;
     }
     st.done = checked;
-    li.classList.toggle('done', checked);
     render();
+    renderSubtasksTab(state.tasks.find((t) => t.id === taskId));
   });
 
   const span = document.createElement('span');
@@ -747,8 +778,8 @@ function buildSubtaskItem(taskId, st) {
     }
     const task = state.tasks.find((t) => t.id === taskId);
     if (task) task.subtasks = (task.subtasks || []).filter((s) => s.id !== st.id);
-    li.remove();
     render();
+    renderSubtasksTab(task);
   });
 
   li.append(cb, span, del);

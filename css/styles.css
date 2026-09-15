@@ -729,6 +729,15 @@ h1, h2, h3 { margin: 0; }
   font-size: 13px;
 }
 
+.subtasks-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.subtasks-progress .progress-bar { flex: 1; }
+
 .subtasks-list {
   list-style: none;
   margin: 0;
@@ -752,9 +761,25 @@ h1, h2, h3 { margin: 0; }
   font-size: 13px;
 }
 
+.subtask-item.done {
+  opacity: 0.6;
+}
+
 .subtask-item.done span {
   text-decoration: line-through;
   color: var(--text-muted);
+}
+
+.subtask-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  padding: 6px 2px 0;
+}
+.subtask-group-label:first-child {
+  padding-top: 0;
 }
 
 .subtask-remove {
@@ -856,4 +881,14 @@ h1, h2, h3 { margin: 0; }
   .column { min-width: 82vw; max-height: none; }
   .modal { max-height: 100vh; height: 100%; border-radius: 0; }
   .field-row { flex-direction: column; }
+
+  /* La tabla mantiene su ancho natural y se desplaza horizontalmente en vez
+     de comprimir el texto de cada celda en muchas líneas. */
+  .task-table { width: max-content; min-width: 100%; }
+  .task-table td:first-child {
+    white-space: nowrap;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
