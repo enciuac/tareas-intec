@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tareas INTEC · Kanban</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen" class="login-screen">
+  <form id="login-form" class="login-card">
+    <h1>Tareas INTEC</h1>
+    <p class="login-sub">Inicia sesión para ver el tablero</p>
+    <label>
+      Email
+      <input type="email" id="login-email" autocomplete="username" required>
+    </label>
+    <label>
+      Contraseña
+      <input type="password" id="login-password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" id="login-submit">Entrar</button>
+    <p id="login-error" class="login-error" hidden></p>
+  </form>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="app" hidden>
+
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1>Tareas INTEC</h1>
+      <span id="stats-summary" class="stats-summary"></span>
+    </div>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="icon-btn" title="Cambiar tema" type="button">🌙</button>
+      <button id="logout-btn" class="ghost-btn" type="button">Salir</button>
+      <button id="new-task-btn" class="primary-btn" type="button">+ Nueva tarea</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <select id="filter-mes" class="select">
+      <option value="Todos">Todos los meses</option>
+      <option value="Febrero">Febrero</option>
+      <option value="Marzo">Marzo</option>
+      <option value="Abril">Abril</option>
+      <option value="Mayo">Mayo</option>
+      <option value="Junio">Junio</option>
+      <option value="Julio">Julio</option>
+      <option value="Agosto">Agosto</option>
+      <option value="Septiembre">Septiembre</option>
+    </select>
+    <input type="search" id="filter-search" class="search-input" placeholder="Buscar por nombre o notas…">
+  </div>
+
+  <main class="board" id="board">
+    <section class="column" data-status="Sin empezar">
+      <header class="column-header">
+        <span class="column-dot dot-sinempezar"></span>
+        <h2>Sin empezar</h2>
+        <span class="column-count" data-count="Sin empezar">0</span>
+      </header>
+      <div class="card-list" data-list="Sin empezar"></div>
+    </section>
+
+    <section class="column" data-status="En curso">
+      <header class="column-header">
+        <span class="column-dot dot-encurso"></span>
+        <h2>En curso</h2>
+        <span class="column-count" data-count="En curso">0</span>
+      </header>
+      <div class="card-list" data-list="En curso"></div>
+    </section>
+
+    <section class="column" data-status="En espera">
+      <header class="column-header">
+        <span class="column-dot dot-enespera"></span>
+        <h2>En espera</h2>
+        <span class="column-count" data-count="En espera">0</span>
+      </header>
+      <div class="card-list" data-list="En espera"></div>
+    </section>
+
+    <section class="column" data-status="Parado">
+      <header class="column-header">
+        <span class="column-dot dot-parado"></span>
+        <h2>Parado</h2>
+        <span class="column-count" data-count="Parado">0</span>
+      </header>
+      <div class="card-list" data-list="Parado"></div>
+    </section>
+
+    <section class="column" data-status="Listo">
+      <header class="column-header">
+        <span class="column-dot dot-listo"></span>
+        <h2>Listo</h2>
+        <span class="column-count" data-count="Listo">0</span>
+      </header>
+      <div class="card-list" data-list="Listo"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== MODAL TAREA ===================== -->
+<div id="modal-overlay" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <header class="modal-header">
+      <h2 id="modal-title">Nueva tarea</h2>
+      <button id="modal-close" class="icon-btn" type="button">✕</button>
+    </header>
+
+    <nav class="modal-tabs">
+      <button class="tab-btn active" data-tab="detalles" type="button">Detalles</button>
+      <button class="tab-btn" data-tab="subtareas" type="button">Subtareas</button>
+      <button class="tab-btn" data-tab="historial" type="button">Historial</button>
+    </nav>
+
+    <div class="modal-body">
+      <!-- Tab Detalles -->
+      <form id="task-form" class="tab-panel active" data-tab-panel="detalles">
+        <label>
+          Nombre
+          <input type="text" id="field-nombre" required maxlength="300">
+        </label>
+
+        <div class="field-row">
+          <label>
+            Mes
+            <select id="field-mes" required>
+              <option value="Febrero">Febrero</option>
+              <option value="Marzo">Marzo</option>
+              <option value="Abril">Abril</option>
+              <option value="Mayo">Mayo</option>
+              <option value="Junio">Junio</option>
+              <option value="Julio">Julio</option>
+              <option value="Agosto">Agosto</option>
+              <option value="Septiembre">Septiembre</option>
+            </select>
+          </label>
+          <label>
+            Estado
+            <select id="field-status" required>
+              <option value="Sin empezar">Sin empezar</option>
+              <option value="En curso">En curso</option>
+              <option value="En espera">En espera</option>
+              <option value="Parado">Parado</option>
+              <option value="Listo">Listo</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label>
+            Prioridad
+            <select id="field-prioridad" required>
+              <option value="Alta">Alta</option>
+              <option value="Media" selected>Media</option>
+              <option value="Baja">Baja</option>
+            </select>
+          </label>
+          <label>
+            Categoría
+            <select id="field-categoria" required>
+              <option value="Marketing">Marketing</option>
+              <option value="Diseño">Diseño</option>
+              <option value="Web">Web</option>
+              <option value="Mailing">Mailing</option>
+              <option value="Tienda">Tienda</option>
+              <option value="Admin">Admin</option>
+              <option value="General" selected>General</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label>
+            Apuntada
+            <input type="date" id="field-apuntada">
+          </label>
+          <label>
+            Terminada
+            <input type="date" id="field-terminada">
+          </label>
+        </div>
+
+        <label>
+          Horas (opcional)
+          <input type="number" id="field-horas" min="0" step="0.5">
+        </label>
+
+        <label>
+          Notas
+          <textarea id="field-notas" rows="5"></textarea>
+        </label>
+      </form>
+
+      <!-- Tab Subtareas -->
+      <div class="tab-panel" data-tab-panel="subtareas">
+        <p id="subtasks-hint" class="hint" hidden>Guarda la tarea primero para añadir subtareas.</p>
+        <ul id="subtasks-list" class="subtasks-list"></ul>
+        <form id="subtask-add-form" class="subtask-add-form">
+          <input type="text" id="subtask-input" placeholder="Nueva subtarea…" maxlength="300">
+          <button type="submit" class="ghost-btn">Añadir</button>
+        </form>
+      </div>
+
+      <!-- Tab Historial -->
+      <div class="tab-panel" data-tab-panel="historial">
+        <ul id="history-list" class="history-list"></ul>
+      </div>
+    </div>
+
+    <footer class="modal-footer">
+      <button id="delete-task-btn" class="danger-btn" type="button" hidden>Eliminar tarea</button>
+      <div class="modal-footer-right">
+        <button id="cancel-task-btn" class="ghost-btn" type="button">Cancelar</button>
+        <button id="save-task-btn" class="primary-btn" type="submit" form="task-form">Guardar</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

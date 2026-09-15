@@ -1,0 +1,15 @@
+{
+  "name": "tareas-intec-seed",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Importa las tareas de Tareas_2026.xlsx a Supabase",
+  "type": "commonjs",
+  "scripts": {
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "dotenv": "^17.4.2",
+    "xlsx": "^0.18.5"
+  }
+}
