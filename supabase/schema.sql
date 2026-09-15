@@ -21,6 +21,8 @@ create table if not exists public.tasks (
               check (prioridad in ('Alta','Media','Baja')),
   categoria   text not null default 'General'
               check (categoria in ('Marketing','Diseño','Web','Mailing','Tienda','Admin','General')),
+  marca       text not null default 'General'
+              check (marca in ('Intec','Sumifluid','Jender','CST Iberica','Blizzcool','Blizztherm','General')),
   apuntada    date,
   terminada   date,
   horas       numeric,
@@ -30,6 +32,16 @@ create table if not exists public.tasks (
 
 create index if not exists idx_tasks_mes on public.tasks (mes);
 create index if not exists idx_tasks_status on public.tasks (status);
+
+-- -----------------------------------------------------------------------------
+-- Migración: añade "marca" si la tabla ya existía sin esa columna
+-- (una instalación nueva ya la trae en el CREATE TABLE de arriba).
+-- -----------------------------------------------------------------------------
+alter table public.tasks add column if not exists marca text not null default 'General';
+
+alter table public.tasks drop constraint if exists tasks_marca_check;
+alter table public.tasks add constraint tasks_marca_check
+  check (marca in ('Intec','Sumifluid','Jender','CST Iberica','Blizzcool','Blizztherm','General'));
 
 -- -----------------------------------------------------------------------------
 -- Tabla: subtasks (checklist dentro de cada tarea)

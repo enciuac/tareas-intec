@@ -3,8 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tareas INTEC · Kanban</title>
-<link rel="icon" href="data:,">
+<title>Tareas Alin Intec</title>
+<meta name="description" content="Tablero Kanban de tareas de Alin para INTEC, Jender, Blizzcool, Sumifluid, CST Ibérica, Blizztherm y más marcas.">
+
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tareas Alin Intec">
+<meta property="og:description" content="Tablero Kanban de tareas de Alin para INTEC, Jender, Blizzcool, Sumifluid, CST Ibérica, Blizztherm y más marcas.">
+<meta property="og:url" content="https://enciuac.github.io/tareas-intec/">
+<meta property="og:image" content="https://enciuac.github.io/tareas-intec/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tareas Alin Intec">
+<meta name="twitter:description" content="Tablero Kanban de tareas de Alin para INTEC, Jender, Blizzcool, Sumifluid, CST Ibérica, Blizztherm y más marcas.">
+<meta name="twitter:image" content="https://enciuac.github.io/tareas-intec/og-image.png">
+
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -12,7 +30,7 @@
 <!-- ===================== LOGIN ===================== -->
 <div id="login-screen" class="login-screen">
   <form id="login-form" class="login-card">
-    <h1>Tareas INTEC</h1>
+    <h1>Tareas Alin Intec</h1>
     <p class="login-sub">Inicia sesión para ver el tablero</p>
     <label>
       Email
@@ -33,7 +51,7 @@
   <div class="app-header">
     <header class="topbar">
       <div class="topbar-title">
-        <h1>Tareas INTEC</h1>
+        <h1>Tareas Alin Intec</h1>
         <span id="stats-summary" class="stats-summary"></span>
       </div>
       <div class="topbar-actions">
@@ -62,6 +80,16 @@
           <option value="Julio">Julio</option>
           <option value="Agosto">Agosto</option>
           <option value="Septiembre">Septiembre</option>
+        </select>
+        <select id="filter-marca" class="select">
+          <option value="Todas">Todas las marcas</option>
+          <option value="Intec">Intec</option>
+          <option value="Sumifluid">Sumifluid</option>
+          <option value="Jender">Jender</option>
+          <option value="CST Iberica">CST Ibérica</option>
+          <option value="Blizzcool">Blizzcool</option>
+          <option value="Blizztherm">Blizztherm</option>
+          <option value="General">General / sin marca</option>
         </select>
         <select id="filter-categoria" class="select">
           <option value="Todas">Todas las categorías</option>
@@ -147,6 +175,7 @@
         <thead>
           <tr>
             <th>Nombre</th>
+            <th>Marca</th>
             <th>Mes</th>
             <th>Estado</th>
             <th>Prioridad</th>
@@ -172,6 +201,14 @@
         <details class="chart-table-toggle">
           <summary>Ver datos</summary>
           <table class="chart-data-table" id="chart-mes-table"></table>
+        </details>
+      </div>
+      <div class="chart-card">
+        <h3>Tareas por marca</h3>
+        <div class="chart-box"><canvas id="chart-marca"></canvas></div>
+        <details class="chart-table-toggle">
+          <summary>Ver datos</summary>
+          <table class="chart-data-table" id="chart-marca-table"></table>
         </details>
       </div>
       <div class="chart-card">
@@ -222,6 +259,19 @@
         <label>
           Nombre
           <input type="text" id="field-nombre" required maxlength="300">
+        </label>
+
+        <label>
+          Marca
+          <select id="field-marca" required>
+            <option value="Intec">Intec</option>
+            <option value="Sumifluid">Sumifluid</option>
+            <option value="Jender">Jender</option>
+            <option value="CST Iberica">CST Ibérica</option>
+            <option value="Blizzcool">Blizzcool</option>
+            <option value="Blizztherm">Blizztherm</option>
+            <option value="General" selected>General / sin marca</option>
+          </select>
         </label>
 
         <div class="field-row">

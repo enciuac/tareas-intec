@@ -456,6 +456,11 @@ h1, h2, h3 { margin: 0; }
   gap: 5px;
 }
 
+.badge-strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
 .badge-dot {
   width: 6px;
   height: 6px;

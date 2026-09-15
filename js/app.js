@@ -1,4 +1,4 @@
-/* Tareas INTEC — tablero Kanban sobre Supabase */
+/* Tareas Alin Intec — tablero Kanban sobre Supabase */
 
 const sbClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
@@ -20,12 +20,18 @@ function currentMesOrFallback(fallback) {
   return MONTHS.includes(real) ? real : fallback;
 }
 const CATEGORIES = ['Marketing', 'Diseño', 'Web', 'Mailing', 'Tienda', 'Admin', 'General'];
+const MARCAS = ['Intec', 'Sumifluid', 'Jender', 'CST Iberica', 'Blizzcool', 'Blizztherm', 'General'];
+const MARCA_LABELS = { 'CST Iberica': 'CST Ibérica', General: 'General / sin marca' };
 const PRIORITIES = ['Alta', 'Media', 'Baja'];
 const PRIORITY_ORDER = { Alta: 0, Media: 1, Baja: 2 };
 
 const CATEGORY_VARS = {
   Marketing: '--cat-marketing', Diseño: '--cat-diseno', Web: '--cat-web', Mailing: '--cat-mailing',
   Tienda: '--cat-tienda', Admin: '--cat-admin', General: '--cat-general',
+};
+const MARCA_VARS = {
+  Intec: '--cat-marketing', Sumifluid: '--cat-diseno', Jender: '--cat-web', 'CST Iberica': '--cat-mailing',
+  Blizzcool: '--cat-tienda', Blizztherm: '--cat-admin', General: '--cat-general',
 };
 const PRIORITY_VARS = { Alta: '--status-critical', Media: '--status-warning', Baja: '--status-good' };
 const STATUS_VARS = {
@@ -38,6 +44,7 @@ const state = {
   tasks: [],
   view: localStorage.getItem('view') || 'board',
   filterMes: currentMesOrFallback('Todos'),
+  filterMarca: 'Todas',
   filterCategoria: 'Todas',
   filterPrioridad: 'Todas',
   filterQuery: '',
@@ -57,6 +64,7 @@ const els = {
   avatar: document.getElementById('user-avatar'),
   statsSummary: document.getElementById('stats-summary'),
   filterMes: document.getElementById('filter-mes'),
+  filterMarca: document.getElementById('filter-marca'),
   filterCategoria: document.getElementById('filter-categoria'),
   filterPrioridad: document.getElementById('filter-prioridad'),
   sortBy: document.getElementById('sort-by'),
@@ -115,6 +123,14 @@ function priorityColor(prio) {
 
 function statusColor(status) {
   return cssVar(STATUS_VARS[status] || '--col-sinempezar');
+}
+
+function marcaLabel(marca) {
+  return MARCA_LABELS[marca] || marca || 'General';
+}
+
+function marcaColor(marca) {
+  return cssVar(MARCA_VARS[marca] || '--cat-general');
 }
 
 function hexToRgba(hex, alpha) {
@@ -275,11 +291,13 @@ setView(state.view);
 
 function getFilteredTasks() {
   const mes = state.filterMes;
+  const marca = state.filterMarca;
   const categoria = state.filterCategoria;
   const prioridad = state.filterPrioridad;
   const q = state.filterQuery.trim().toLowerCase();
   return state.tasks.filter((t) => {
     if (mes !== 'Todos' && t.mes !== mes) return false;
+    if (marca !== 'Todas' && t.marca !== marca) return false;
     if (categoria !== 'Todas' && t.categoria !== categoria) return false;
     if (prioridad !== 'Todas' && t.prioridad !== prioridad) return false;
     if (q) {
@@ -307,6 +325,7 @@ function sortTasks(list) {
 els.filterMes.value = state.filterMes;
 
 els.filterMes.addEventListener('change', (e) => { state.filterMes = e.target.value; render(); });
+els.filterMarca.addEventListener('change', (e) => { state.filterMarca = e.target.value; render(); });
 els.filterCategoria.addEventListener('change', (e) => { state.filterCategoria = e.target.value; render(); });
 els.filterPrioridad.addEventListener('change', (e) => { state.filterPrioridad = e.target.value; render(); });
 els.sortBy.addEventListener('change', (e) => { state.sortBy = e.target.value; render(); });
@@ -345,6 +364,7 @@ function buildCard(task) {
   const meta = document.createElement('div');
   meta.className = 'task-card-meta';
   meta.innerHTML = `
+    <span class="badge badge-strong"><span class="badge-dot" style="--dot-color:${marcaColor(task.marca)}"></span>${escapeHtml(marcaLabel(task.marca))}</span>
     <span class="badge">${escapeHtml(task.mes)}</span>
     <span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span>
     <span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span>
@@ -394,6 +414,7 @@ function buildTableRow(task) {
 
   tr.innerHTML = `
     <td>${escapeHtml(task.nombre)}</td>
+    <td><span class="badge"><span class="badge-dot" style="--dot-color:${marcaColor(task.marca)}"></span>${escapeHtml(marcaLabel(task.marca))}</span></td>
     <td>${escapeHtml(task.mes)}</td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${statusColor(task.status)}"></span>${escapeHtml(task.status)}</span></td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span></td>
@@ -506,6 +527,19 @@ function renderStats(list) {
   });
   renderChartTable('chart-mes-table', ['Mes', 'Tareas'], MONTHS.map((m, i) => [m, mesCounts[i]]));
 
+  const marcaCounts = MARCAS.map((m) => tasks.filter((t) => t.marca === m).length);
+  const marcaColors = MARCAS.map(marcaColor);
+  buildChart('chart-marca', {
+    type: 'doughnut',
+    data: { labels: MARCAS.map(marcaLabel), datasets: [{ data: marcaCounts, backgroundColor: marcaColors, borderColor: surface, borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { size: 11 } } } },
+    },
+  });
+  renderChartTable('chart-marca-table', ['Marca', 'Tareas'], MARCAS.map((m, i) => [marcaLabel(m), marcaCounts[i]]));
+
   const catCounts = CATEGORIES.map((c) => tasks.filter((t) => t.categoria === c).length);
   const catColors = CATEGORIES.map(categoryColor);
   buildChart('chart-categoria', {
@@ -615,7 +649,9 @@ function openTaskModal(taskId) {
   els.deleteTaskBtn.hidden = !task;
 
   const defaultMes = state.filterMes !== 'Todos' ? state.filterMes : currentMesOrFallback('Febrero');
+  const defaultMarca = state.filterMarca !== 'Todas' ? state.filterMarca : 'General';
   document.getElementById('field-nombre').value = task ? task.nombre : '';
+  document.getElementById('field-marca').value = task ? task.marca || 'General' : defaultMarca;
   document.getElementById('field-mes').value = task ? task.mes : defaultMes;
   document.getElementById('field-status').value = task ? task.status : 'Sin empezar';
   document.getElementById('field-prioridad').value = task ? task.prioridad : 'Media';
@@ -647,6 +683,7 @@ els.taskForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
     nombre: document.getElementById('field-nombre').value.trim(),
+    marca: document.getElementById('field-marca').value,
     mes: document.getElementById('field-mes').value,
     status: document.getElementById('field-status').value,
     prioridad: document.getElementById('field-prioridad').value,
