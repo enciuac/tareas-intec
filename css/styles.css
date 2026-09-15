@@ -481,6 +481,7 @@ h1, h2, h3 { margin: 0; }
 }
 
 .progress-bar-fill {
+  display: block;
   height: 100%;
   background: var(--success);
 }
