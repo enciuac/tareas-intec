@@ -89,6 +89,26 @@
 
 * { box-sizing: border-box; }
 
+/* Scrollbars finas y discretas (Firefox + WebKit) en vez de las nativas del navegador */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
 /* El atributo hidden debe ganar siempre, incluso frente a un display:flex/grid
    fijado por clase (misma especificidad que [hidden], y nuestra hoja se carga
    después de la del navegador). Sin esto, login/app/modal quedan visibles a
