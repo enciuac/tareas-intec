@@ -52,6 +52,14 @@
 
 * { box-sizing: border-box; }
 
+/* El atributo hidden debe ganar siempre, incluso frente a un display:flex/grid
+   fijado por clase (misma especificidad que [hidden], y nuestra hoja se carga
+   después de la del navegador). Sin esto, login/app/modal quedan visibles a
+   la vez aunque JS les ponga [hidden]. */
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   height: 100%;
 }
