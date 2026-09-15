@@ -4,6 +4,21 @@ const sbClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABA
 
 const STATUSES = ['Sin empezar', 'En curso', 'En espera', 'Parado', 'Listo'];
 const MONTHS = ['Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre'];
+const ALL_MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+function todayISO() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function currentMesOrFallback(fallback) {
+  const real = ALL_MONTH_NAMES[new Date().getMonth()];
+  return MONTHS.includes(real) ? real : fallback;
+}
 const CATEGORIES = ['Marketing', 'Diseño', 'Web', 'Mailing', 'Tienda', 'Admin', 'General'];
 const PRIORITIES = ['Alta', 'Media', 'Baja'];
 const PRIORITY_ORDER = { Alta: 0, Media: 1, Baja: 2 };
@@ -22,7 +37,7 @@ const state = {
   session: null,
   tasks: [],
   view: localStorage.getItem('view') || 'board',
-  filterMes: 'Todos',
+  filterMes: currentMesOrFallback('Todos'),
   filterCategoria: 'Todas',
   filterPrioridad: 'Todas',
   filterQuery: '',
@@ -285,6 +300,8 @@ function sortTasks(list) {
   }
   return arr;
 }
+
+els.filterMes.value = state.filterMes;
 
 els.filterMes.addEventListener('change', (e) => { state.filterMes = e.target.value; render(); });
 els.filterCategoria.addEventListener('change', (e) => { state.filterCategoria = e.target.value; render(); });
@@ -594,13 +611,13 @@ function openTaskModal(taskId) {
   els.modalTitle.textContent = task ? 'Editar tarea' : 'Nueva tarea';
   els.deleteTaskBtn.hidden = !task;
 
-  const defaultMes = state.filterMes !== 'Todos' ? state.filterMes : 'Febrero';
+  const defaultMes = state.filterMes !== 'Todos' ? state.filterMes : currentMesOrFallback('Febrero');
   document.getElementById('field-nombre').value = task ? task.nombre : '';
   document.getElementById('field-mes').value = task ? task.mes : defaultMes;
   document.getElementById('field-status').value = task ? task.status : 'Sin empezar';
   document.getElementById('field-prioridad').value = task ? task.prioridad : 'Media';
   document.getElementById('field-categoria').value = task ? task.categoria : 'General';
-  document.getElementById('field-apuntada').value = (task && task.apuntada) || '';
+  document.getElementById('field-apuntada').value = task ? (task.apuntada || '') : todayISO();
   document.getElementById('field-terminada').value = (task && task.terminada) || '';
   document.getElementById('field-horas').value = task && task.horas != null ? task.horas : '';
   document.getElementById('field-notas').value = (task && task.notas) || '';
