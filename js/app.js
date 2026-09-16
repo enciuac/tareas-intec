@@ -482,15 +482,19 @@ function updateStatTiles(tasks) {
   const listo = tasks.filter((t) => t.status === 'Listo').length;
   const curso = tasks.filter((t) => t.status === 'En curso').length;
   const pendientes = total - listo - curso;
-  const horas = tasks.reduce((sum, t) => sum + (Number(t.horas) || 0), 0);
   const pct = total ? Math.round((listo / total) * 100) : 0;
+
+  const mesActual = currentMesOrFallback(null);
+  const horasMes = mesActual
+    ? state.tasks.filter((t) => t.mes === mesActual).reduce((sum, t) => sum + (Number(t.horas) || 0), 0)
+    : 0;
 
   const tiles = [
     { label: 'Total tareas', value: total, color: cssVar('--accent') },
     { label: `Completadas (${pct}%)`, value: listo, color: cssVar('--status-good') },
     { label: 'En curso', value: curso, color: cssVar('--col-encurso') },
     { label: 'Pendientes', value: pendientes, color: cssVar('--status-warning') },
-    { label: 'Horas registradas', value: Math.round(horas * 10) / 10, color: cssVar('--accent-2') },
+    { label: `Horas registradas (${mesActual || 'mes actual'})`, value: Math.round(horasMes * 10) / 10, color: cssVar('--accent-2') },
   ];
 
   els.statsTiles.innerHTML = tiles.map((t) => `
