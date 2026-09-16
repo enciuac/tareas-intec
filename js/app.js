@@ -675,10 +675,6 @@ function closeModal() {
 document.getElementById('new-task-btn').addEventListener('click', () => openTaskModal(null));
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('cancel-task-btn').addEventListener('click', closeModal);
-els.modalOverlay.addEventListener('click', (e) => {
-  if (e.target === els.modalOverlay) closeModal();
-});
-
 els.taskForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
