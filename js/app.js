@@ -89,6 +89,8 @@ const els = {
   toastContainer: document.getElementById('toast-container'),
   themeToggle: document.getElementById('theme-toggle'),
   exportPdfBtn: document.getElementById('export-pdf-btn'),
+  exportModalOverlay: document.getElementById('export-modal-overlay'),
+  exportGenerateBtn: document.getElementById('export-generate-btn'),
 };
 
 STATUSES.forEach((s) => {
@@ -886,14 +888,14 @@ const PDF_COLHEAD_H = 18;
 const PDF_FOOTER_H = 14;
 const PDF_COLS = [
   { key: 'marca', label: 'Marca', width: 80 },
-  { key: 'nombre', label: 'Tarea', width: 232 },
-  { key: 'mes', label: 'Mes', width: 48 },
-  { key: 'estado', label: 'Estado', width: 66 },
-  { key: 'prioridad', label: 'Prioridad', width: 48 },
-  { key: 'categoria', label: 'Categoría', width: 70 },
-  { key: 'apuntada', label: 'Apuntada', width: 52 },
-  { key: 'terminada', label: 'Terminada', width: 52 },
-  { key: 'progreso', label: 'Progr.', width: 40 },
+  { key: 'nombre', label: 'Tarea', width: 260 },
+  { key: 'mes', label: 'Mes', width: 52 },
+  { key: 'estado', label: 'Estado', width: 70 },
+  { key: 'prioridad', label: 'Prioridad', width: 52 },
+  { key: 'categoria', label: 'Categoría', width: 75 },
+  { key: 'apuntada', label: 'Apuntada', width: 56 },
+  { key: 'horas', label: 'Horas', width: 44 },
+  { key: 'progreso', label: 'Progr.', width: 44 },
 ];
 
 function svgEl(tag, attrs) {
@@ -1030,7 +1032,7 @@ function buildPdfPageSVG(pageRows, opts) {
       drawPdfCell(svg, colX[4] + 4, y, row.height, t.prioridad);
       drawPdfCell(svg, colX[5] + 4, y, row.height, t.categoria);
       drawPdfCell(svg, colX[6] + 4, y, row.height, t.apuntada);
-      drawPdfCell(svg, colX[7] + 4, y, row.height, t.terminada);
+      drawPdfCell(svg, colX[7] + 4, y, row.height, t.horas != null ? String(t.horas) : null);
       const subs = t.subtasks || [];
       drawPdfCell(svg, colX[8] + 4, y, row.height, subs.length ? `${subs.filter((s) => s.done).length}/${subs.length}` : '—');
     } else {
@@ -1063,27 +1065,17 @@ function buildPdfPageSVG(pageRows, opts) {
   return svg;
 }
 
-function buildPdfFilterSummary() {
-  const parts = [state.filterMes !== 'Todos' ? state.filterMes : 'Todos los meses'];
-  if (state.filterMarca !== 'Todas') parts.push(marcaLabel(state.filterMarca));
-  if (state.filterCategoria !== 'Todas') parts.push(state.filterCategoria);
-  if (state.filterPrioridad !== 'Todas') parts.push(state.filterPrioridad);
-  if (state.filterQuery.trim()) parts.push(`"${state.filterQuery.trim()}"`);
-  return parts.join(' · ');
-}
-
-async function exportPDF() {
+async function exportPDF(tasks, filterSummary, filenamePart) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     showToast('No se pudo cargar el generador de PDF', 'error');
     return;
   }
-  const tasks = sortTasks(getFilteredTasks());
   if (!tasks.length) {
-    showToast('No hay tareas para exportar con los filtros actuales', 'error');
+    showToast('No hay tareas que coincidan con esos filtros', 'error');
     return;
   }
 
-  const btn = els.exportPdfBtn;
+  const btn = els.exportGenerateBtn;
   const originalLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Generando…';
@@ -1091,7 +1083,7 @@ async function exportPDF() {
   try {
     const rows = buildPdfReportRows(tasks);
     const pages = paginatePdfRows(rows);
-    const filterSummary = `${tasks.length} tareas · ${buildPdfFilterSummary()}`;
+    const summaryLine = `${tasks.length} tareas · ${filterSummary}`;
     const generatedAt = new Date().toLocaleString('es-ES', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
@@ -1108,7 +1100,7 @@ async function exportPDF() {
         isFirst: i === 0,
         pageNum: i + 1,
         totalPages: pages.length,
-        filterSummary,
+        filterSummary: summaryLine,
         generatedAt,
       });
       container.appendChild(svg);
@@ -1119,8 +1111,7 @@ async function exportPDF() {
     }
     container.remove();
 
-    const mesPart = state.filterMes !== 'Todos' ? state.filterMes.toLowerCase() : 'todas';
-    doc.save(`tareas-${mesPart}-${todayISO()}.pdf`);
+    doc.save(`tareas-${filenamePart}-${todayISO()}.pdf`);
     showToast('PDF generado', 'success');
   } catch (err) {
     console.error(err);
@@ -1131,4 +1122,74 @@ async function exportPDF() {
   }
 }
 
-els.exportPdfBtn.addEventListener('click', exportPDF);
+/* --------------------------- modal de exportación -------------------------- */
+
+function openExportModal() {
+  document.getElementById('export-scope').value = 'todas';
+  document.getElementById('export-date-mode').value = 'ninguno';
+  document.getElementById('export-mes').value = currentMesOrFallback('Todos');
+  document.getElementById('export-date-from').value = '';
+  document.getElementById('export-date-to').value = '';
+  updateExportDateModeUI();
+  els.exportModalOverlay.hidden = false;
+}
+
+function closeExportModal() {
+  els.exportModalOverlay.hidden = true;
+}
+
+function updateExportDateModeUI() {
+  const mode = document.getElementById('export-date-mode').value;
+  document.getElementById('export-mes-wrap').hidden = mode !== 'mes';
+  document.getElementById('export-range-wrap').hidden = mode !== 'intervalo';
+}
+
+document.getElementById('export-date-mode').addEventListener('change', updateExportDateModeUI);
+document.getElementById('export-modal-close').addEventListener('click', closeExportModal);
+document.getElementById('export-cancel-btn').addEventListener('click', closeExportModal);
+
+els.exportPdfBtn.addEventListener('click', openExportModal);
+
+els.exportGenerateBtn.addEventListener('click', async () => {
+  const scope = document.getElementById('export-scope').value;
+  const dateMode = document.getElementById('export-date-mode').value;
+  const mes = document.getElementById('export-mes').value;
+  const from = document.getElementById('export-date-from').value;
+  const to = document.getElementById('export-date-to').value;
+
+  let tasks = [...state.tasks];
+  const summaryParts = [scope === 'completadas' ? 'Solo completadas' : 'Todas'];
+  let filenamePart = scope === 'completadas' ? 'completadas' : 'todas';
+
+  if (scope === 'completadas') {
+    tasks = tasks.filter((t) => t.status === 'Listo');
+  }
+
+  if (dateMode === 'mes') {
+    if (mes !== 'Todos') {
+      tasks = tasks.filter((t) => t.mes === mes);
+      summaryParts.push(mes);
+      filenamePart += `-${mes.toLowerCase()}`;
+    } else {
+      summaryParts.push('Todos los meses');
+    }
+  } else if (dateMode === 'intervalo') {
+    if (!from && !to) {
+      showToast('Indica al menos una fecha para el intervalo', 'error');
+      return;
+    }
+    tasks = tasks.filter((t) => {
+      const d = t.apuntada;
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+    summaryParts.push(`${from || '…'} - ${to || '…'}`);
+    filenamePart += `-${from || 'inicio'}_${to || 'fin'}`;
+  }
+
+  tasks = sortTasks(tasks);
+  closeExportModal();
+  await exportPDF(tasks, summaryParts.join(' · '), filenamePart);
+});

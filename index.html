@@ -240,6 +240,69 @@
   </div>
 </div>
 
+<!-- ===================== MODAL EXPORTAR PDF ===================== -->
+<div id="export-modal-overlay" class="modal-overlay" hidden>
+  <div class="modal export-modal" role="dialog" aria-modal="true">
+    <header class="modal-header">
+      <h2>Exportar PDF</h2>
+      <button id="export-modal-close" class="icon-btn" type="button">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <label>
+        Qué exportar
+        <select id="export-scope">
+          <option value="todas">Todas las tareas</option>
+          <option value="completadas">Solo completadas (Listo)</option>
+        </select>
+      </label>
+
+      <label>
+        Filtrar por fecha
+        <select id="export-date-mode">
+          <option value="ninguno">Sin filtro de fecha</option>
+          <option value="mes">Por mes</option>
+          <option value="intervalo">Por intervalo de fechas</option>
+        </select>
+      </label>
+
+      <label id="export-mes-wrap">
+        Mes
+        <select id="export-mes">
+          <option value="Todos">Todos los meses</option>
+          <option value="Febrero">Febrero</option>
+          <option value="Marzo">Marzo</option>
+          <option value="Abril">Abril</option>
+          <option value="Mayo">Mayo</option>
+          <option value="Junio">Junio</option>
+          <option value="Julio">Julio</option>
+          <option value="Agosto">Agosto</option>
+          <option value="Septiembre">Septiembre</option>
+        </select>
+      </label>
+
+      <div id="export-range-wrap" class="field-row" hidden>
+        <label>
+          Desde
+          <input type="date" id="export-date-from">
+        </label>
+        <label>
+          Hasta
+          <input type="date" id="export-date-to">
+        </label>
+      </div>
+    </div>
+
+    <footer class="modal-footer">
+      <div></div>
+      <div class="modal-footer-right">
+        <button id="export-cancel-btn" class="ghost-btn" type="button">Cancelar</button>
+        <button id="export-generate-btn" class="primary-btn" type="button">Generar PDF</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
 <!-- ===================== MODAL TAREA ===================== -->
 <div id="modal-overlay" class="modal-overlay" hidden>
   <div class="modal" role="dialog" aria-modal="true">
