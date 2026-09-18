@@ -88,6 +88,7 @@ const els = {
   historyList: document.getElementById('history-list'),
   toastContainer: document.getElementById('toast-container'),
   themeToggle: document.getElementById('theme-toggle'),
+  exportPdfBtn: document.getElementById('export-pdf-btn'),
 };
 
 STATUSES.forEach((s) => {
@@ -873,3 +874,261 @@ async function renderHistoryTab(task) {
     els.historyList.appendChild(li);
   });
 }
+
+/* ============================== exportar PDF =============================== */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const PDF_PAGE_W = 842;
+const PDF_PAGE_H = 595;
+const PDF_MARGIN = 28;
+const PDF_TITLE_BLOCK_H = 46;
+const PDF_COLHEAD_H = 18;
+const PDF_FOOTER_H = 14;
+const PDF_COLS = [
+  { key: 'marca', label: 'Marca', width: 80 },
+  { key: 'nombre', label: 'Tarea', width: 232 },
+  { key: 'mes', label: 'Mes', width: 48 },
+  { key: 'estado', label: 'Estado', width: 66 },
+  { key: 'prioridad', label: 'Prioridad', width: 48 },
+  { key: 'categoria', label: 'Categoría', width: 70 },
+  { key: 'apuntada', label: 'Apuntada', width: 52 },
+  { key: 'terminada', label: 'Terminada', width: 52 },
+  { key: 'progreso', label: 'Progr.', width: 40 },
+];
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs || {}).forEach(([k, v]) => el.setAttribute(k, String(v)));
+  return el;
+}
+
+function pdfColX() {
+  let x = PDF_MARGIN;
+  return PDF_COLS.map((c) => { const cx = x; x += c.width; return cx; });
+}
+
+function pdfWrapLines(ctx, text, maxWidth, maxLines) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+  const lines = [];
+  let cur = '';
+  let idx = 0;
+  while (idx < words.length && lines.length < maxLines) {
+    const w = words[idx];
+    const test = cur ? cur + ' ' + w : w;
+    if (!cur || ctx.measureText(test).width <= maxWidth) {
+      cur = test;
+      idx++;
+    } else {
+      lines.push(cur);
+      cur = '';
+    }
+  }
+  if (cur) lines.push(cur);
+  if (idx < words.length) {
+    let last = lines[lines.length - 1] || '';
+    while (last.length && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+    lines[lines.length - 1] = last + '…';
+  }
+  return lines.length ? lines : [''];
+}
+
+function buildPdfReportRows(tasks) {
+  const rows = [];
+  tasks.forEach((t) => {
+    rows.push({ kind: 'task', task: t });
+    [...(t.subtasks || [])].sort((a, b) => a.pos - b.pos).forEach((s) => rows.push({ kind: 'sub', sub: s }));
+  });
+  return rows;
+}
+
+function preparePdfRow(ctx, row) {
+  const nombreColW = PDF_COLS[1].width - 8;
+  if (row.kind === 'task') {
+    ctx.font = 'bold 9px Helvetica';
+    const lines = pdfWrapLines(ctx, row.task.nombre, nombreColW - 4, 2);
+    return { ...row, lines, height: Math.max(lines.length, 1) * 11 + 6 };
+  }
+  ctx.font = '8px Helvetica';
+  const prefix = row.sub.done ? '[x] ' : '[ ] ';
+  const lines = pdfWrapLines(ctx, prefix + row.sub.texto, nombreColW - 16, 2);
+  return { ...row, lines, height: Math.max(lines.length, 1) * 10 + 4 };
+}
+
+function paginatePdfRows(rows) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const prepared = rows.map((r) => preparePdfRow(ctx, r));
+  const usableBottom = PDF_PAGE_H - PDF_MARGIN - PDF_FOOTER_H;
+  const firstStartY = PDF_MARGIN + PDF_TITLE_BLOCK_H + PDF_COLHEAD_H;
+  const otherStartY = PDF_MARGIN + PDF_COLHEAD_H;
+  const pages = [];
+  let current = [];
+  let y = firstStartY;
+  prepared.forEach((row) => {
+    const startY = pages.length === 0 ? firstStartY : otherStartY;
+    if (current.length && y + row.height > usableBottom) {
+      pages.push(current);
+      current = [];
+      y = otherStartY;
+    }
+    if (!current.length) y = pages.length === 0 ? firstStartY : otherStartY;
+    current.push(row);
+    y += row.height;
+  });
+  if (current.length) pages.push(current);
+  return pages;
+}
+
+function drawPdfCell(svg, x, y, rowHeight, text, opts) {
+  const size = (opts && opts.size) || 8;
+  const el = svgEl('text', {
+    x, y: y + rowHeight / 2 + size / 3,
+    'font-family': 'helvetica', 'font-size': size,
+    fill: (opts && opts.color) || '#454b52',
+  });
+  el.textContent = text == null || text === '' ? '—' : String(text);
+  svg.appendChild(el);
+}
+
+function buildPdfPageSVG(pageRows, opts) {
+  const svg = svgEl('svg', { viewBox: `0 0 ${PDF_PAGE_W} ${PDF_PAGE_H}`, width: PDF_PAGE_W, height: PDF_PAGE_H });
+  svg.appendChild(svgEl('rect', { x: 0, y: 0, width: PDF_PAGE_W, height: PDF_PAGE_H, fill: '#ffffff' }));
+
+  let y = PDF_MARGIN;
+  if (opts.isFirst) {
+    const title = svgEl('text', { x: PDF_MARGIN, y: y + 16, 'font-family': 'helvetica', 'font-size': 17, 'font-weight': 'bold', fill: '#1c2126' });
+    title.textContent = 'Tareas Alin Intec';
+    svg.appendChild(title);
+    const sub = svgEl('text', { x: PDF_MARGIN, y: y + 32, 'font-family': 'helvetica', 'font-size': 9, fill: '#626a73' });
+    sub.textContent = `${opts.filterSummary} · generado ${opts.generatedAt}`;
+    svg.appendChild(sub);
+    y += PDF_TITLE_BLOCK_H;
+  }
+
+  const colX = pdfColX();
+  svg.appendChild(svgEl('rect', { x: PDF_MARGIN, y, width: PDF_PAGE_W - PDF_MARGIN * 2, height: PDF_COLHEAD_H, fill: '#eceef1' }));
+  PDF_COLS.forEach((c, i) => {
+    const t = svgEl('text', { x: colX[i] + 4, y: y + 12.5, 'font-family': 'helvetica', 'font-size': 7.5, 'font-weight': 'bold', fill: '#626a73' });
+    t.textContent = c.label.toUpperCase();
+    svg.appendChild(t);
+  });
+  y += PDF_COLHEAD_H;
+
+  pageRows.forEach((row) => {
+    if (row.kind === 'task') {
+      const t = row.task;
+      svg.appendChild(svgEl('rect', { x: PDF_MARGIN, y, width: 3, height: row.height, fill: priorityColor(t.prioridad) }));
+      drawPdfCell(svg, colX[0] + 4, y, row.height, marcaLabel(t.marca), { size: 8, color: '#1c2126' });
+      row.lines.forEach((line, li) => {
+        const el = svgEl('text', { x: colX[1] + 4, y: y + 12 + li * 11, 'font-family': 'helvetica', 'font-size': 9, 'font-weight': 'bold', fill: '#1c2126' });
+        el.textContent = line;
+        svg.appendChild(el);
+      });
+      drawPdfCell(svg, colX[2] + 4, y, row.height, t.mes);
+      drawPdfCell(svg, colX[3] + 4, y, row.height, t.status);
+      drawPdfCell(svg, colX[4] + 4, y, row.height, t.prioridad);
+      drawPdfCell(svg, colX[5] + 4, y, row.height, t.categoria);
+      drawPdfCell(svg, colX[6] + 4, y, row.height, t.apuntada);
+      drawPdfCell(svg, colX[7] + 4, y, row.height, t.terminada);
+      const subs = t.subtasks || [];
+      drawPdfCell(svg, colX[8] + 4, y, row.height, subs.length ? `${subs.filter((s) => s.done).length}/${subs.length}` : '—');
+    } else {
+      const s = row.sub;
+      row.lines.forEach((line, li) => {
+        const el = svgEl('text', {
+          x: colX[1] + 18, y: y + 10 + li * 10,
+          'font-family': 'helvetica', 'font-size': 8,
+          fill: s.done ? '#898781' : '#454b52',
+          'text-decoration': s.done ? 'line-through' : 'none',
+        });
+        el.textContent = line;
+        svg.appendChild(el);
+      });
+    }
+    svg.appendChild(svgEl('line', {
+      x1: PDF_MARGIN, x2: PDF_PAGE_W - PDF_MARGIN, y1: y + row.height, y2: y + row.height,
+      stroke: '#dfe2e6', 'stroke-width': 0.5,
+    }));
+    y += row.height;
+  });
+
+  const foot = svgEl('text', {
+    x: PDF_PAGE_W - PDF_MARGIN, y: PDF_PAGE_H - 12, 'text-anchor': 'end',
+    'font-family': 'helvetica', 'font-size': 8, fill: '#898781',
+  });
+  foot.textContent = `Página ${opts.pageNum} de ${opts.totalPages}`;
+  svg.appendChild(foot);
+
+  return svg;
+}
+
+function buildPdfFilterSummary() {
+  const parts = [state.filterMes !== 'Todos' ? state.filterMes : 'Todos los meses'];
+  if (state.filterMarca !== 'Todas') parts.push(marcaLabel(state.filterMarca));
+  if (state.filterCategoria !== 'Todas') parts.push(state.filterCategoria);
+  if (state.filterPrioridad !== 'Todas') parts.push(state.filterPrioridad);
+  if (state.filterQuery.trim()) parts.push(`"${state.filterQuery.trim()}"`);
+  return parts.join(' · ');
+}
+
+async function exportPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('No se pudo cargar el generador de PDF', 'error');
+    return;
+  }
+  const tasks = sortTasks(getFilteredTasks());
+  if (!tasks.length) {
+    showToast('No hay tareas para exportar con los filtros actuales', 'error');
+    return;
+  }
+
+  const btn = els.exportPdfBtn;
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+
+  try {
+    const rows = buildPdfReportRows(tasks);
+    const pages = paginatePdfRows(rows);
+    const filterSummary = `${tasks.length} tareas · ${buildPdfFilterSummary()}`;
+    const generatedAt = new Date().toLocaleString('es-ES', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-99999px';
+    document.body.appendChild(container);
+
+    for (let i = 0; i < pages.length; i++) {
+      const svg = buildPdfPageSVG(pages[i], {
+        isFirst: i === 0,
+        pageNum: i + 1,
+        totalPages: pages.length,
+        filterSummary,
+        generatedAt,
+      });
+      container.appendChild(svg);
+      if (i > 0) doc.addPage();
+      // eslint-disable-next-line no-await-in-loop
+      await doc.svg(svg, { x: 0, y: 0, width: PDF_PAGE_W, height: PDF_PAGE_H });
+      container.removeChild(svg);
+    }
+    container.remove();
+
+    const mesPart = state.filterMes !== 'Todos' ? state.filterMes.toLowerCase() : 'todas';
+    doc.save(`tareas-${mesPart}-${todayISO()}.pdf`);
+    showToast('PDF generado', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('Error al generar el PDF: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+els.exportPdfBtn.addEventListener('click', exportPDF);
