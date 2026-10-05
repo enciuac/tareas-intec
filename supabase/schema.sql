@@ -15,7 +15,9 @@ create table if not exists public.tasks (
   status      text not null default 'Sin empezar'
               check (status in ('Sin empezar','En curso','En espera','Parado','Listo')),
   mes         text not null
-              check (mes in ('Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre')),
+              check (mes in ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre')),
+  mes_original text
+              check (mes_original is null or mes_original in ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre')),
   notas       text default '',
   prioridad   text not null default 'Media'
               check (prioridad in ('Alta','Media','Baja')),
@@ -42,6 +44,21 @@ alter table public.tasks add column if not exists marca text not null default 'G
 alter table public.tasks drop constraint if exists tasks_marca_check;
 alter table public.tasks add constraint tasks_marca_check
   check (marca in ('Intec','Sumifluid','Jender','CST Iberica','Blizzcool','Blizztherm','General'));
+
+-- -----------------------------------------------------------------------------
+-- Migración: amplía "mes" a los 12 meses del año (antes solo Febrero..Septiembre)
+-- y añade "mes_original" para el traspaso automático de tareas sin acabar al
+-- mes en curso (guarda de qué mes venía arrastrada, para mostrar un badge).
+-- -----------------------------------------------------------------------------
+alter table public.tasks add column if not exists mes_original text;
+
+alter table public.tasks drop constraint if exists tasks_mes_check;
+alter table public.tasks add constraint tasks_mes_check
+  check (mes in ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'));
+
+alter table public.tasks drop constraint if exists tasks_mes_original_check;
+alter table public.tasks add constraint tasks_mes_original_check
+  check (mes_original is null or mes_original in ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'));
 
 -- -----------------------------------------------------------------------------
 -- Tabla: subtasks (checklist dentro de cada tarea)

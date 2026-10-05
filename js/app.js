@@ -3,11 +3,11 @@
 const sbClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
 const STATUSES = ['Sin empezar', 'En curso', 'En espera', 'Parado', 'Listo'];
-const MONTHS = ['Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre'];
 const ALL_MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+const MONTHS = ALL_MONTH_NAMES;
 
 function todayISO() {
   const d = new Date();
@@ -209,6 +209,7 @@ async function handleAuthedState() {
   els.loginScreen.hidden = true;
   els.app.hidden = false;
   await loadTasks();
+  await rolloverUnfinishedTasks();
   render();
   subscribeRealtime();
 }
@@ -249,6 +250,34 @@ async function loadTasks() {
     return;
   }
   state.tasks = data || [];
+}
+
+async function rolloverUnfinishedTasks() {
+  const currentMes = currentMesOrFallback(null);
+  if (!currentMes) return;
+  const currentIdx = ALL_MONTH_NAMES.indexOf(currentMes);
+
+  const toRoll = state.tasks.filter((t) => {
+    if (t.status === 'Listo') return false;
+    const idx = ALL_MONTH_NAMES.indexOf(t.mes);
+    return idx >= 0 && idx < currentIdx;
+  });
+  if (!toRoll.length) return;
+
+  const results = await Promise.all(toRoll.map(async (t) => {
+    const mesOriginal = t.mes_original || t.mes;
+    const { error } = await sbClient.from('tasks').update({ mes: currentMes, mes_original: mesOriginal }).eq('id', t.id);
+    if (!error) {
+      t.mes = currentMes;
+      t.mes_original = mesOriginal;
+    }
+    return error;
+  }));
+
+  const moved = results.filter((e) => !e).length;
+  if (moved > 0) {
+    showToast(`${moved} tarea${moved === 1 ? '' : 's'} sin acabar pasada${moved === 1 ? '' : 's'} a ${currentMes}`, 'success');
+  }
 }
 
 function subscribeRealtime() {
@@ -364,6 +393,7 @@ function buildCard(task) {
   title.textContent = task.nombre;
   div.appendChild(title);
 
+  const showPending = task.mes_original && task.mes_original !== task.mes && task.status !== 'Listo';
   const meta = document.createElement('div');
   meta.className = 'task-card-meta';
   meta.innerHTML = `
@@ -371,6 +401,7 @@ function buildCard(task) {
     <span class="badge">${escapeHtml(task.mes)}</span>
     <span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span>
     <span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span>
+    ${showPending ? `<span class="badge badge-pending">Pendiente de ${escapeHtml(task.mes_original)}</span>` : ''}
   `;
   div.appendChild(meta);
 
@@ -418,7 +449,7 @@ function buildTableRow(task) {
   tr.innerHTML = `
     <td>${escapeHtml(task.nombre)}</td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${marcaColor(task.marca)}"></span>${escapeHtml(marcaLabel(task.marca))}</span></td>
-    <td>${escapeHtml(task.mes)}</td>
+    <td>${escapeHtml(task.mes)}${task.mes_original && task.mes_original !== task.mes && task.status !== 'Listo' ? ` <span class="badge badge-pending">de ${escapeHtml(task.mes_original)}</span>` : ''}</td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${statusColor(task.status)}"></span>${escapeHtml(task.status)}</span></td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${priorityColor(task.prioridad)}"></span>${escapeHtml(task.prioridad)}</span></td>
     <td><span class="badge"><span class="badge-dot" style="--dot-color:${categoryColor(task.categoria)}"></span>${escapeHtml(task.categoria)}</span></td>
