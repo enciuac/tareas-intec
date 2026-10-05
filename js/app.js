@@ -266,10 +266,25 @@ async function rolloverUnfinishedTasks() {
 
   const results = await Promise.all(toRoll.map(async (t) => {
     const mesOriginal = t.mes_original || t.mes;
-    const { error } = await sbClient.from('tasks').update({ mes: currentMes, mes_original: mesOriginal }).eq('id', t.id);
+    const horasPrevias = Number(t.horas) || 0;
+
+    // Las horas ya trabajadas se quedan registradas en el mes donde se hicieron;
+    // el mes nuevo arranca en 0 (si no, las horas "viajarían" con la tarea).
+    if (horasPrevias > 0) {
+      const { error: logError } = await sbClient
+        .from('task_hours_log')
+        .insert({ task_id: t.id, mes: t.mes, horas: horasPrevias });
+      if (logError) return logError;
+    }
+
+    const { error } = await sbClient
+      .from('tasks')
+      .update({ mes: currentMes, mes_original: mesOriginal, horas: null })
+      .eq('id', t.id);
     if (!error) {
       t.mes = currentMes;
       t.mes_original = mesOriginal;
+      t.horas = null;
     }
     return error;
   }));
@@ -884,26 +899,36 @@ async function renderHistoryTab(task) {
     return;
   }
   els.historyList.innerHTML = '<li class="history-item">Cargando…</li>';
-  const { data, error } = await sbClient
-    .from('task_logs')
-    .select('*')
-    .eq('task_id', task.id)
-    .order('changed_at', { ascending: false });
+  const [logsRes, hoursRes] = await Promise.all([
+    sbClient.from('task_logs').select('*').eq('task_id', task.id).order('changed_at', { ascending: false }),
+    sbClient.from('task_hours_log').select('*').eq('task_id', task.id).order('logged_at', { ascending: false }),
+  ]);
 
-  if (error) {
+  if (logsRes.error || hoursRes.error) {
     els.historyList.innerHTML = '<li class="history-item">Error al cargar historial.</li>';
     return;
   }
-  if (!data.length) {
+
+  const entries = [
+    ...(logsRes.data || []).map((log) => ({
+      at: log.changed_at,
+      html: `<div>${log.status_anterior ? escapeHtml(log.status_anterior) : 'Creada'} → <strong>${escapeHtml(log.status_nuevo)}</strong></div><time>${formatDateTime(log.changed_at)}</time>`,
+    })),
+    ...(hoursRes.data || []).map((h) => ({
+      at: h.logged_at,
+      html: `<div>${h.horas}h registradas en <strong>${escapeHtml(h.mes)}</strong></div><time>${formatDateTime(h.logged_at)}</time>`,
+    })),
+  ].sort((a, b) => new Date(b.at) - new Date(a.at));
+
+  if (!entries.length) {
     els.historyList.innerHTML = '<li class="history-item">Sin historial todavía.</li>';
     return;
   }
   els.historyList.innerHTML = '';
-  data.forEach((log) => {
+  entries.forEach((entry) => {
     const li = document.createElement('li');
     li.className = 'history-item';
-    const fromTxt = log.status_anterior ? escapeHtml(log.status_anterior) : 'Creada';
-    li.innerHTML = `<div>${fromTxt} → <strong>${escapeHtml(log.status_nuevo)}</strong></div><time>${formatDateTime(log.changed_at)}</time>`;
+    li.innerHTML = entry.html;
     els.historyList.appendChild(li);
   });
 }

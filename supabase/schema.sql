@@ -87,6 +87,21 @@ create table if not exists public.task_logs (
 create index if not exists idx_task_logs_task_id on public.task_logs (task_id);
 
 -- -----------------------------------------------------------------------------
+-- Tabla: task_hours_log (horas conservadas por mes al traspasar una tarea
+-- sin acabar al mes en curso — ver rolloverUnfinishedTasks en js/app.js)
+-- -----------------------------------------------------------------------------
+create table if not exists public.task_hours_log (
+  id         uuid primary key default gen_random_uuid(),
+  task_id    uuid not null references public.tasks(id) on delete cascade,
+  mes        text not null
+             check (mes in ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre')),
+  horas      numeric not null,
+  logged_at  timestamptz not null default now()
+);
+
+create index if not exists idx_task_hours_log_task_id on public.task_hours_log (task_id);
+
+-- -----------------------------------------------------------------------------
 -- Trigger: mantener updated_at al día
 -- -----------------------------------------------------------------------------
 create or replace function public.set_updated_at()
@@ -151,6 +166,7 @@ for each row execute function public.log_status_change();
 alter table public.tasks enable row level security;
 alter table public.subtasks enable row level security;
 alter table public.task_logs enable row level security;
+alter table public.task_hours_log enable row level security;
 
 drop policy if exists "authenticated_all_tasks" on public.tasks;
 create policy "authenticated_all_tasks" on public.tasks
@@ -166,6 +182,12 @@ create policy "authenticated_all_subtasks" on public.subtasks
 
 drop policy if exists "authenticated_all_task_logs" on public.task_logs;
 create policy "authenticated_all_task_logs" on public.task_logs
+  for all
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+drop policy if exists "authenticated_all_task_hours_log" on public.task_hours_log;
+create policy "authenticated_all_task_hours_log" on public.task_hours_log
   for all
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
