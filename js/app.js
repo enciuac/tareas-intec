@@ -1005,7 +1005,13 @@ function preparePdfRow(ctx, row) {
   if (row.kind === 'task') {
     ctx.font = 'bold 9px Helvetica';
     const lines = pdfWrapLines(ctx, row.task.nombre, nombreColW - 4, 2);
-    return { ...row, lines, height: Math.max(lines.length, 1) * 11 + 6 };
+    let notasLines = [];
+    if (row.task.notas && row.task.notas.trim()) {
+      ctx.font = 'italic 7.5px Helvetica';
+      notasLines = pdfWrapLines(ctx, row.task.notas.trim().replace(/\s+/g, ' '), nombreColW - 4, 3);
+    }
+    const height = Math.max(lines.length, 1) * 11 + notasLines.length * 9 + 6;
+    return { ...row, lines, notasLines, height };
   }
   ctx.font = '8px Helvetica';
   const prefix = row.sub.done ? '[x] ' : '[ ] ';
@@ -1080,6 +1086,15 @@ function buildPdfPageSVG(pageRows, opts) {
       drawPdfCell(svg, colX[0] + 4, y, row.height, marcaLabel(t.marca), { size: 8, color: '#1c2126' });
       row.lines.forEach((line, li) => {
         const el = svgEl('text', { x: colX[1] + 4, y: y + 12 + li * 11, 'font-family': 'helvetica', 'font-size': 9, 'font-weight': 'bold', fill: '#1c2126' });
+        el.textContent = line;
+        svg.appendChild(el);
+      });
+      (row.notasLines || []).forEach((line, li) => {
+        const notasY = y + 12 + row.lines.length * 11 + li * 9;
+        const el = svgEl('text', {
+          x: colX[1] + 4, y: notasY,
+          'font-family': 'helvetica', 'font-size': 7.5, 'font-style': 'italic', fill: '#626a73',
+        });
         el.textContent = line;
         svg.appendChild(el);
       });
